@@ -1,0 +1,13 @@
+{
+  "name": "patchverdict-conflicting-contract",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Controlled negative case: conflicting acceptance tests",
+  "scripts": {
+    "test": "node --test tests/reported.test.js tests/contract.test.js",
+    "test:reported": "node --test tests/reported.test.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
