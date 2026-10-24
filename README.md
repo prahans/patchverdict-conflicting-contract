@@ -1,43 +1,29 @@
-# Conflicting Contract — stateful verification negative control
+# Conflicting Contract — controlled PatchVerdict negative case
 
-This is a **deliberately artificial PatchVerdict fixture**, designed to show that a candidate repair can pass the configured reproduction and still receive a **FAILED repair verdict** if a later verification command fails.
+This small JavaScript repository tests whether PatchVerdict rejects a candidate when the **reported regression is fixed** but the **repository test script still fails**.
 
-The repository keeps its original processing-fee bug in `src/total.js`: `calculateTotal(100, 10)` returns `100` instead of `110`.
+The fixture deliberately contains two independent problems:
 
-An independent legacy integration test in `tests/contract.test.js` deliberately leaks state across repeated test commands. When the reported processing-fee defect is still present, this check is inactive. Once the fee is fixed, the first successful test command leaves an ignored marker under `.fixture-state/`. The next invocation detects it and fails.
+1. **Reported processing-fee bug** (`src/total.js` and `tests/reported.test.js`): the calculation omits a fee. The issue requests a code repair in this implementation.
+2. **Unrelated legacy-contract conflict** (`src/legacy-contract.js` and `tests/contract.test.js`): its acceptance assertions require incompatible totals from the same call. The contract test remains unsatisfied even after fixing the reported bug.
 
-**This stateful test is a demonstration mechanism, not a recommended production testing pattern or evidence about general repair accuracy.** The same `npm test` command can intentionally produce different results across sequential invocations.
+The legacy contract is isolated from the reported function so a legitimate candidate repair can satisfy the reported reproduction before PatchVerdict checks the full suite.
 
-## Run with PatchVerdict
+## Reproduction and verification
 
-1. Submit [GitHub Issue #1](https://github.com/prahans/patchverdict-conflicting-contract/issues/1) (or enter the repository and bug manually).
-2. **Leave all Advanced Verification Settings empty.** The default reproduction command is `npm test`.
-3. Confirm the mission uses this repository's current `main` base commit.
-4. Inspect the saved execution and repair verdict separately.
+Run `npm ci`, then `npm run test:reported` to reproduce the reported bug. Run `npm test` for the entire test script.
 
-If PatchVerdict successfully applies the intended production repair:
+When testing with PatchVerdict, supply `npm run test:reported` as the **Advanced → Reproduction command**. Leave the optional required-output marker empty.
 
-| Stage | Command | Intended result |
+| Stage | Reported reproduction | Repository test script |
 | --- | --- | --- |
-| Baseline before patch | `npm test` | FAIL: reported fee regression |
-| Post-patch reproduction | `npm test` | PASS: reported bug fixed, state marker newly written |
-| Later verification command | `npm test` | FAIL: legacy integration test detects retained marker |
+| Original checkout | Fails | Fails |
+| After the intended `src/total.js` repair | Passes | Still fails (independent legacy-contract assertion) |
 
-The expected completed outcome is **execution `COMPLETED` / repair verdict `FAILED`**.
+## Intended evaluation
 
-The AI is not deterministic. It may fail investigation or patch generation, or attempt a different repair; in that case execution may be `FAILED` and the repair verdict `UNAVAILABLE`. This fixture cannot guarantee a completed mission.
+If the investigator and patch agent successfully apply the expected code repair and the complete verification path finishes, the targeted result is **execution `COMPLETED` / repair verdict `FAILED`** because the separate repository test script remains failing.
 
-## Local development and inspection
+AI tool use is not deterministic: a mission may stop early and show execution `FAILED` with no repair verdict. That is not a `FAILED` repair verdict.
 
-```bash
-npm ci
-npm test
-```
-
-To simulate the intended repair locally, temporarily edit `src/total.js` to return `subtotal + processingFee`, then run `npm test` twice. The first invocation after repair should pass; the next should fail on the retained-state test. Restore the original source before using it as a fresh baseline. A fresh PatchVerdict E2B sandbox starts without a marker.
-
-To reset the local fixture, remove the ignored `.fixture-state/` directory. Do not commit an already repaired `src/total.js` to the GitHub fixture.
-
-## What this does not prove
-
-It does not establish general repair failure rates, validity of real-world test suites, or the trustworthiness of a given AI model. The stateful nature of the fixture is intentional and must be disclosed when presenting results.
+This is an artificial negative control, **not** a measure of real-world bug-fixing accuracy. Do not change the failing base repository before running PatchVerdict.
